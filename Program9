@@ -1,0 +1,71 @@
+from itertools import combinations
+
+
+def generate_C1(dataset):
+    C1 = set()
+    for transaction in dataset:
+        for item in transaction:
+            C1.add(frozenset([item]))
+    return C1
+
+
+def generate_L1(dataset, C1, min_support):
+    item_count = {}
+    for transaction in dataset:
+        for item in transaction:
+            item_count[frozenset([item])] = item_count.get(frozenset([item]), 0) + 1
+
+    L1 = {itemset for itemset, count in item_count.items() if count >= min_support}
+    return L1, item_count
+
+
+def generate_Ck(Lk_minus_1, k):
+    Ck = set()
+    for itemset1 in Lk_minus_1:
+        for itemset2 in Lk_minus_1:
+            union_set = itemset1.union(itemset2)
+            if len(union_set) == k:
+                Ck.add(union_set)
+    return Ck
+
+
+def generate_Lk(dataset, Ck, min_support):
+    item_count = {}
+    for transaction in dataset:
+        for itemset in Ck:
+            if itemset.issubset(transaction):
+                item_count[itemset] = item_count.get(itemset, 0) + 1
+
+    Lk = {itemset for itemset, count in item_count.items() if count >= min_support}
+    return Lk, item_count
+
+
+def apriori(dataset, min_support):
+    C1 = generate_C1(dataset)
+    L1, item_count = generate_L1(dataset, C1, min_support)
+    L = [L1]
+
+    k = 2
+    while len(L[k-2]) > 0:
+        Ck = generate_Ck(L[k-2], k)
+        Lk, item_count = generate_Lk(dataset, Ck, min_support)
+        L.append(Lk)
+        k += 1
+
+    return L, item_count
+
+
+dataset = [['bread', 'milk'],
+           ['bread', 'diaper', 'beer', 'egg'],
+           ['milk', 'diaper', 'beer', 'cola'],
+           ['bread', 'milk', 'diaper', 'beer'],
+           ['bread', 'milk', 'diaper', 'cola']]
+
+min_support = 3  
+
+frequent_itemsets, item_count = apriori(dataset, min_support)
+
+for k, Lk in enumerate(frequent_itemsets):
+    print(f"Frequent {k+1}-itemsets:")
+    print(Lk)
+    print()
