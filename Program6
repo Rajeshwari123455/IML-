@@ -1,0 +1,63 @@
+import numpy as np
+from scipy.stats import multivariate_normal
+
+def initialize_parameters(data, num_clusters):
+    num_samples, num_features = data.shape
+    means = data[np.random.choice(num_samples, num_clusters, replace=False)]
+    covariances = np.array([np.eye(num_features) for _ in range(num_clusters)])
+    weights = np.ones(num_clusters) / num_clusters
+    return means, covariances, weights
+
+def expectation(data, means, covariances, weights):
+    num_samples, num_features = data.shape
+    num_clusters = len(means)
+    responsibilities = np.zeros((num_samples, num_clusters))
+
+    for i in range(num_clusters):
+        multivariate_normal_distribution = multivariate_normal(mean=means[i], cov=covariances[i])
+        responsibilities[:, i] = weights[i] * multivariate_normal_distribution.pdf(data)
+
+    responsibilities /= responsibilities.sum(axis=1, keepdims=True)
+    return responsibilities
+
+def maximization(data, responsibilities):
+    num_samples, num_features = data.shape
+    num_clusters = responsibilities.shape[1]
+
+    total_weight = responsibilities.sum(axis=0)
+    means = np.dot(responsibilities.T, data) / total_weight[:, np.newaxis]
+
+    covariances = np.zeros((num_clusters, num_features, num_features))
+    for i in range(num_clusters):
+        diff = data - means[i]
+        covariances[i] = np.dot(responsibilities[:, i] * diff.T, diff) / total_weight[i]
+
+    weights = total_weight / num_samples
+
+    return means, covariances, weights
+
+def run_em_algorithm(data, num_clusters, num_iterations=100):
+    means, covariances, weights = initialize_parameters(data, num_clusters)
+
+    for _ in range(num_iterations):
+        responsibilities = expectation(data, means, covariances, weights)
+        means, covariances, weights = maximization(data, responsibilities)
+
+    return means, covariances, weights
+
+
+np.random.seed(42)
+
+data1 = np.random.multivariate_normal([5, 5], [[1, 0], [0, 1]], size=100)
+data2 = np.random.multivariate_normal([10, 10], [[1, 0], [0, 1]], size=100)
+data = np.vstack([data1, data2])
+
+num_clusters = 2
+means, covariances, weights = run_em_algorithm(data, num_clusters)
+
+print("Estimated Means:")
+print(means)
+print("\nEstimated Covariances:")
+print(covariances)
+print("\nEstimated Weights:")
+print(weights)
